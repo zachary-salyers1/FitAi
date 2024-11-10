@@ -1,34 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Dumbbell } from 'lucide-react';
+import { Dumbbell, User } from 'lucide-react';
 import WorkoutForm from './WorkoutForm';
 import WorkoutPlan from './WorkoutPlan';
-import { initializeOpenAI, getOpenAIClient } from '../lib/openai';
+import Profile from './Profile';
+import { initializeOpenAI } from '../lib/openai';
 import { useAuth } from '../contexts/AuthContext';
-import { saveWorkoutPlan, getRecentWorkouts, WorkoutPlan as WorkoutPlanType } from '../lib/firestore';
-
-interface WorkoutPlanState {
-  plan: string;
-  loading: boolean;
-  error?: string;
-}
-
-interface UserProfile {
-  name: string;
-  age: string;
-  gender: string;
-  weight: string;
-  height: string;
-  activityLevel: string;
-  workoutDaysPerWeek: string;
-  healthConditions: string;
-  dietaryRestrictions: string;
-}
+import { saveWorkoutPlan, getRecentWorkouts } from '../lib/firestore';
 
 interface WorkoutPlannerProps {
-  userProfile: UserProfile;
+  userProfile: any;
+  onProfileUpdate: (profile: any) => void;
 }
 
-export default function WorkoutPlanner({ userProfile }: WorkoutPlannerProps) {
+export default function WorkoutPlanner({ userProfile, onProfileUpdate }: WorkoutPlannerProps) {
+  const [showProfile, setShowProfile] = useState(false);
   const { user } = useAuth();
   const [apiKeyError, setApiKeyError] = useState<string>('');
   const [formData, setFormData] = useState({
@@ -38,11 +23,11 @@ export default function WorkoutPlanner({ userProfile }: WorkoutPlannerProps) {
     equipment: 'minimal',
     customEquipment: [] as string[]
   });
-  const [workoutPlan, setWorkoutPlan] = useState<WorkoutPlanState>({
+  const [workoutPlan, setWorkoutPlan] = useState({
     plan: '',
     loading: false
   });
-  const [recentWorkouts, setRecentWorkouts] = useState<WorkoutPlanType[]>([]);
+  const [recentWorkouts, setRecentWorkouts] = useState([]);
 
   useEffect(() => {
     const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
@@ -184,11 +169,20 @@ export default function WorkoutPlanner({ userProfile }: WorkoutPlannerProps) {
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
       <div className="bg-white rounded-2xl shadow-xl p-8">
-        <div className="flex items-center mb-8">
-          <Dumbbell className="h-8 w-8 text-purple-600" />
-          <h2 className="text-3xl font-bold text-gray-900 ml-3">
-            Welcome, {userProfile.name}!
-          </h2>
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center">
+            <Dumbbell className="h-8 w-8 text-purple-600" />
+            <h2 className="text-3xl font-bold text-gray-900 ml-3">
+              Welcome, {userProfile.name}!
+            </h2>
+          </div>
+          <button
+            onClick={() => setShowProfile(true)}
+            className="flex items-center gap-2 px-4 py-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+          >
+            <User className="h-5 w-5" />
+            Edit Profile
+          </button>
         </div>
 
         {apiKeyError && (
@@ -233,6 +227,17 @@ export default function WorkoutPlanner({ userProfile }: WorkoutPlannerProps) {
           error={workoutPlan.error}
         />
       </div>
+
+      {showProfile && (
+        <Profile 
+          initialData={userProfile}
+          onClose={() => setShowProfile(false)}
+          onSave={(updatedProfile) => {
+            onProfileUpdate(updatedProfile);
+            setShowProfile(false);
+          }}
+        />
+      )}
     </div>
   );
 }

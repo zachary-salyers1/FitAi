@@ -1,8 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { User, Save, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { getUserProfile, saveUserProfile } from '../lib/firestore';
+import { saveUserProfile } from '../lib/firestore';
 import { SelectionBox } from './SelectionBox';
+
+interface ProfileProps {
+  initialData: any;
+  onClose: () => void;
+  onSave: (profile: any) => void;
+}
 
 const activityLevels = [
   { value: 'sedentary', label: 'Sedentary', description: 'Little or no exercise' },
@@ -20,93 +26,49 @@ const workoutDays = [
   { value: '6', label: '6 Days', description: 'Six times a week' }
 ];
 
-export default function Profile({ onClose }: { onClose: () => void }) {
+export default function Profile({ initialData, onClose, onSave }: ProfileProps) {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [profile, setProfile] = useState({
-    name: '',
-    age: '',
-    gender: '',
-    weight: '',
-    height: '',
-    activityLevel: 'moderate',
-    workoutDaysPerWeek: '3',
-    healthConditions: '',
-    dietaryRestrictions: ''
-  });
-
-  useEffect(() => {
-    loadProfile();
-  }, [user]);
-
-  const loadProfile = async () => {
-    if (!user) return;
-    try {
-      const userProfile = await getUserProfile(user.uid);
-      if (userProfile) {
-        setProfile(userProfile);
-      }
-    } catch (err: any) {
-      setError('Failed to load profile');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [formData, setFormData] = useState(initialData);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    setProfile({
-      ...profile,
+    setFormData({
+      ...formData,
       [e.target.name]: e.target.value
     });
   };
 
   const handleBoxSelection = (field: string, value: string) => {
-    setProfile({
-      ...profile,
+    setFormData({
+      ...formData,
       [field]: value
     });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
-
-    setSaving(true);
+    setLoading(true);
     setError('');
 
     try {
-      await saveUserProfile(user.uid, profile);
-      onClose();
+      if (!user) throw new Error('User not authenticated');
+      await saveUserProfile(user.uid, formData);
+      onSave(formData);
     } catch (err: any) {
-      setError('Failed to save profile');
+      setError(err.message);
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <div className="bg-white p-8 rounded-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-gray-200 rounded w-1/3"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-            <div className="h-32 bg-gray-200 rounded"></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white p-8 rounded-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-6">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-8">
           <div className="flex items-center">
             <User className="h-8 w-8 text-purple-600" />
-            <h2 className="text-2xl font-bold text-gray-900 ml-3">Your Profile</h2>
+            <h2 className="text-3xl font-bold text-gray-900 ml-3">Edit Profile</h2>
           </div>
           <button
             onClick={onClose}
@@ -123,20 +85,21 @@ export default function Profile({ onClose }: { onClose: () => void }) {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Full Name
-              </label>
-              <input
-                type="text"
-                name="name"
-                value={profile.name}
-                onChange={handleInputChange}
-                required
-                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Full Name
+            </label>
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleInputChange}
+              required
+              className="w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Age
@@ -144,7 +107,7 @@ export default function Profile({ onClose }: { onClose: () => void }) {
               <input
                 type="number"
                 name="age"
-                value={profile.age}
+                value={formData.age}
                 onChange={handleInputChange}
                 required
                 min="16"
@@ -152,40 +115,41 @@ export default function Profile({ onClose }: { onClose: () => void }) {
                 className="w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
               />
             </div>
-          </div>
 
-          <div className="space-y-4">
-            <label className="block text-sm font-medium text-gray-700">
-              Gender
-            </label>
-            <div className="grid grid-cols-3 gap-4">
-              {['male', 'female', 'other'].map((gender) => (
-                <SelectionBox
-                  key={gender}
-                  selected={profile.gender === gender}
-                  value={gender}
-                  label={gender.charAt(0).toUpperCase() + gender.slice(1)}
-                  description=""
-                  onClick={() => handleBoxSelection('gender', gender)}
-                />
-              ))}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Gender
+              </label>
+              <select
+                name="gender"
+                value={formData.gender}
+                onChange={handleInputChange}
+                required
+                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+              >
+                <option value="">Select gender</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Weight (kg)
+                Weight (lbs)
               </label>
               <input
                 type="number"
                 name="weight"
-                value={profile.weight}
+                value={formData.weight}
                 onChange={handleInputChange}
                 required
                 className="w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
               />
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Height (cm)
@@ -193,7 +157,7 @@ export default function Profile({ onClose }: { onClose: () => void }) {
               <input
                 type="number"
                 name="height"
-                value={profile.height}
+                value={formData.height}
                 onChange={handleInputChange}
                 required
                 className="w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
@@ -205,11 +169,11 @@ export default function Profile({ onClose }: { onClose: () => void }) {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Activity Level
             </label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               {activityLevels.map((level) => (
                 <SelectionBox
                   key={level.value}
-                  selected={profile.activityLevel === level.value}
+                  selected={formData.activityLevel === level.value}
                   value={level.value}
                   label={level.label}
                   description={level.description}
@@ -223,11 +187,11 @@ export default function Profile({ onClose }: { onClose: () => void }) {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Preferred Workout Days
             </label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {workoutDays.map((day) => (
                 <SelectionBox
                   key={day.value}
-                  selected={profile.workoutDaysPerWeek === day.value}
+                  selected={formData.workoutDaysPerWeek === day.value}
                   value={day.value}
                   label={day.label}
                   description={day.description}
@@ -243,9 +207,9 @@ export default function Profile({ onClose }: { onClose: () => void }) {
             </label>
             <textarea
               name="healthConditions"
-              value={profile.healthConditions}
+              value={formData.healthConditions}
               onChange={handleInputChange}
-              placeholder="List any health conditions or injuries that might affect your workout (or type 'None')"
+              placeholder="List any health conditions, injuries, or limitations..."
               rows={3}
               className="w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
             />
@@ -257,9 +221,9 @@ export default function Profile({ onClose }: { onClose: () => void }) {
             </label>
             <textarea
               name="dietaryRestrictions"
-              value={profile.dietaryRestrictions}
+              value={formData.dietaryRestrictions}
               onChange={handleInputChange}
-              placeholder="List any dietary restrictions or preferences (or type 'None')"
+              placeholder="List any dietary restrictions or preferences..."
               rows={3}
               className="w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
             />
@@ -275,10 +239,10 @@ export default function Profile({ onClose }: { onClose: () => void }) {
             </button>
             <button
               type="submit"
-              disabled={saving}
+              disabled={loading}
               className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
             >
-              {saving ? (
+              {loading ? (
                 <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
               ) : (
                 <>

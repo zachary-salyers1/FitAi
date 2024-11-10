@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
@@ -6,51 +6,86 @@ import WorkoutPlanner from './components/WorkoutPlanner';
 import ProfileSetup from './components/ProfileSetup';
 import AuthScreen from './components/AuthScreen';
 import LoadingScreen from './components/LoadingScreen';
+import { getUserProfile } from './lib/firestore';
 
 function AppContent() {
   const { user, loading } = useAuth();
-  const [showWorkoutPlanner, setShowWorkoutPlanner] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [showAuth, setShowAuth] = useState(false);
 
-  const handleStartJourney = () => {
-    setShowWorkoutPlanner(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  useEffect(() => {
+    const handleShowAuth = () => setShowAuth(true);
+    window.addEventListener('showAuth', handleShowAuth);
+    return () => window.removeEventListener('showAuth', handleShowAuth);
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      setShowAuth(false);
+      loadUserProfile();
+    } else {
+      setProfileLoading(false);
+    }
+  }, [user]);
+
+  const loadUserProfile = async () => {
+    try {
+      const profile = await getUserProfile(user.uid);
+      setUserProfile(profile);
+    } catch (error) {
+      console.error('Failed to load user profile:', error);
+    } finally {
+      setProfileLoading(false);
+    }
   };
 
-  const handleProfileComplete = (profile) => {
+  const handleProfileComplete = async (profile) => {
     setUserProfile(profile);
   };
 
-  if (loading) {
+  if (loading || profileLoading) {
     return <LoadingScreen />;
   }
 
-  if (!user) {
+  // Show auth screen when showAuth is true
+  if (showAuth) {
     return <AuthScreen />;
   }
 
+  // Show landing page for non-authenticated users
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-white">
+        <Navbar />
+        <Hero />
+      </div>
+    );
+  }
+
+  // Show profile setup for authenticated users without a profile
+  if (!userProfile) {
+    return (
+      <div className="min-h-screen bg-white">
+        <Navbar />
+        <ProfileSetup onProfileComplete={handleProfileComplete} />
+      </div>
+    );
+  }
+
+  // Show workout planner for authenticated users with a profile
   return (
     <div className="min-h-screen bg-white">
       <Navbar />
-      {!showWorkoutPlanner && (
-        <Hero onStartJourney={handleStartJourney} />
-      )}
-      {showWorkoutPlanner && !userProfile && (
-        <ProfileSetup onProfileComplete={handleProfileComplete} />
-      )}
-      {showWorkoutPlanner && userProfile && (
-        <WorkoutPlanner userProfile={userProfile} />
-      )}
+      <WorkoutPlanner userProfile={userProfile} onProfileUpdate={setUserProfile} />
     </div>
   );
 }
 
-function App() {
+export default function App() {
   return (
     <AuthProvider>
       <AppContent />
     </AuthProvider>
   );
 }
-
-export default App;
