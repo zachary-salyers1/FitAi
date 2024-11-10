@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import WorkoutPlanner from './components/WorkoutPlanner';
 import ProfileSetup from './components/ProfileSetup';
+import AuthScreen from './components/AuthScreen';
+import LoadingScreen from './components/LoadingScreen';
 
-function App() {
+function AppContent() {
+  const { user, loading } = useAuth();
   const [showWorkoutPlanner, setShowWorkoutPlanner] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
 
@@ -16,6 +20,14 @@ function App() {
   const handleProfileComplete = (profile) => {
     setUserProfile(profile);
   };
+
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
+  if (!user) {
+    return <AuthScreen />;
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -30,6 +42,14 @@ function App() {
         <WorkoutPlanner userProfile={userProfile} />
       )}
     </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 

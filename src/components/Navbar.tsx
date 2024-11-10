@@ -1,8 +1,15 @@
 import React from 'react';
-import { Dumbbell, Menu, X } from 'lucide-react';
+import { Dumbbell, Menu, X, LogOut } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { auth } from '../lib/firebase';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = React.useState(false);
+  const { user } = useAuth();
+
+  const handleSignOut = () => {
+    auth.signOut();
+  };
 
   return (
     <nav className="fixed w-full bg-white/80 backdrop-blur-md z-50 shadow-sm">
@@ -19,9 +26,19 @@ export default function Navbar() {
             <a href="#features" className="text-gray-700 hover:text-purple-600 transition-colors">Features</a>
             <a href="#pricing" className="text-gray-700 hover:text-purple-600 transition-colors">Pricing</a>
             <a href="#about" className="text-gray-700 hover:text-purple-600 transition-colors">About</a>
-            <button className="bg-purple-600 text-white px-6 py-2 rounded-full hover:bg-purple-700 transition-colors">
-              Get Started
-            </button>
+            {user ? (
+              <button
+                onClick={handleSignOut}
+                className="flex items-center gap-2 text-gray-700 hover:text-purple-600 transition-colors"
+              >
+                <LogOut className="h-5 w-5" />
+                Sign Out
+              </button>
+            ) : (
+              <button className="bg-purple-600 text-white px-6 py-2 rounded-full hover:bg-purple-700 transition-colors">
+                Get Started
+              </button>
+            )}
           </div>
 
           <div className="md:hidden">
@@ -38,9 +55,19 @@ export default function Navbar() {
             <a href="#features" className="block px-3 py-2 text-gray-700 hover:text-purple-600">Features</a>
             <a href="#pricing" className="block px-3 py-2 text-gray-700 hover:text-purple-600">Pricing</a>
             <a href="#about" className="block px-3 py-2 text-gray-700 hover:text-purple-600">About</a>
-            <button className="w-full text-left px-3 py-2 bg-purple-600 text-white rounded-md">
-              Get Started
-            </button>
+            {user ? (
+              <button
+                onClick={handleSignOut}
+                className="w-full text-left px-3 py-2 text-gray-700 hover:text-purple-600 flex items-center gap-2"
+              >
+                <LogOut className="h-5 w-5" />
+                Sign Out
+              </button>
+            ) : (
+              <button className="w-full text-left px-3 py-2 bg-purple-600 text-white rounded-md">
+                Get Started
+              </button>
+            )}
           </div>
         </div>
       )}
