@@ -103,12 +103,17 @@ export default function WorkoutPlanner({ userProfile }: WorkoutPlannerProps) {
           Time Available: ${formData.timeAvailable} minutes
           Equipment: ${equipmentList}
 
-          Please provide a detailed workout plan that takes into account any health conditions and dietary restrictions. Structure the response with these sections:
-          ### Information Summary
-          ### Weekly Workout Schedule
-          ### Exercise Descriptions
-          ### Safety Advice
-          ### Progress Tracking Suggestions`
+          Please provide a detailed workout plan that takes into account any health conditions and dietary restrictions. Format the response in markdown with these sections:
+          
+          # Information Summary
+          
+          # Weekly Workout Schedule
+          
+          # Exercise Descriptions
+          
+          # Safety Advice
+          
+          # Progress Tracking Suggestions`
       });
 
       const run = await openai.beta.threads.runs.create(thread.id, {

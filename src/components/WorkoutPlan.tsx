@@ -1,5 +1,6 @@
 import React from 'react';
 import { Info, Calendar, Dumbbell, Shield, LineChart } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 
 interface WorkoutPlanProps {
   plan: string;
@@ -8,7 +9,7 @@ interface WorkoutPlanProps {
 
 interface Section {
   title: string;
-  content: string[];
+  content: string;
   icon: React.ReactNode;
 }
 
@@ -25,59 +26,31 @@ export default function WorkoutPlan({ plan, error }: WorkoutPlanProps) {
     return null;
   }
 
-  const parsePlan = (planText: string): Section[] => {
-    const sections: Section[] = [];
-    let currentTitle = '';
-    let currentContent: string[] = [];
-
-    const lines = planText.split('\n').filter(line => line.trim());
-
-    for (const line of lines) {
-      if (line.startsWith('###')) {
-        if (currentTitle && currentContent.length > 0) {
-          sections.push({
-            title: currentTitle,
-            content: currentContent,
-            icon: getIconForSection(currentTitle)
-          });
-        }
-        currentTitle = line.replace('###', '').trim();
-        currentContent = [];
-      } else {
-        currentContent.push(line);
-      }
-    }
-
-    // Add the last section
-    if (currentTitle && currentContent.length > 0) {
-      sections.push({
-        title: currentTitle,
-        content: currentContent,
-        icon: getIconForSection(currentTitle)
-      });
-    }
-
-    return sections;
-  };
-
-  const getIconForSection = (title: string): React.ReactNode => {
+  const getIconForSection = (title: string) => {
     switch (title.toLowerCase()) {
       case 'information summary':
-        return <Info className="h-6 w-6" />;
+        return <Info />;
       case 'weekly workout schedule':
-        return <Calendar className="h-6 w-6" />;
+        return <Calendar />;
       case 'exercise descriptions':
-        return <Dumbbell className="h-6 w-6" />;
+        return <Dumbbell />;
       case 'safety advice':
-        return <Shield className="h-6 w-6" />;
+        return <Shield />;
       case 'progress tracking suggestions':
-        return <LineChart className="h-6 w-6" />;
+        return <LineChart />;
       default:
-        return <Info className="h-6 w-6" />;
+        return <Info />;
     }
   };
 
-  const sections = parsePlan(plan);
+  const sections = plan.split(/(?=# )/).filter(Boolean).map(section => {
+    const [title, ...content] = section.split('\n');
+    return {
+      title: title.replace('# ', ''),
+      content: content.join('\n').trim(),
+      icon: getIconForSection(title.replace('# ', ''))
+    };
+  });
 
   return (
     <div className="mt-8 space-y-6">
@@ -102,27 +75,7 @@ export default function WorkoutPlan({ plan, error }: WorkoutPlanProps) {
             
             <div className="p-6">
               <div className="prose prose-purple max-w-none">
-                {section.content.map((line, lineIndex) => {
-                  if (line.startsWith('-')) {
-                    return (
-                      <li key={lineIndex} className="text-gray-700">
-                        {line.replace('-', '').trim()}
-                      </li>
-                    );
-                  }
-                  if (line.startsWith('**')) {
-                    return (
-                      <h5 key={lineIndex} className="font-semibold text-gray-900 mt-4 first:mt-0">
-                        {line.replace(/\*\*/g, '')}
-                      </h5>
-                    );
-                  }
-                  return (
-                    <p key={lineIndex} className="text-gray-700">
-                      {line}
-                    </p>
-                  );
-                })}
+                <ReactMarkdown>{section.content}</ReactMarkdown>
               </div>
             </div>
           </div>
