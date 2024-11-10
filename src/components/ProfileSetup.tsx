@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { User, Scale, Ruler, Calendar, CheckCircle2 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { saveUserProfile } from '../lib/firestore';
 
 interface ProfileSetupProps {
   onProfileComplete: (profile: any) => void;
@@ -22,40 +24,62 @@ const workoutDays = [
 ];
 
 export default function ProfileSetup({ onProfileComplete }: ProfileSetupProps) {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [step, setStep] = useState(1);
-  const [profile, setProfile] = useState({
+  const [formData, setFormData] = useState({
     name: '',
     age: '',
     gender: '',
     weight: '',
     height: '',
-    activityLevel: '',
-    workoutDaysPerWeek: '',
+    activityLevel: 'moderate',
+    workoutDaysPerWeek: '3',
     healthConditions: '',
     dietaryRestrictions: ''
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    setProfile({
-      ...profile,
+    setFormData({
+      ...formData,
       [e.target.name]: e.target.value
     });
   };
 
   const handleBoxSelection = (field: string, value: string) => {
-    setProfile({
-      ...profile,
+    setFormData({
+      ...formData,
       [field]: value
     });
   };
 
   const handleNext = () => {
-    setStep(step + 1);
+    if (step < 3) {
+      setStep(step + 1);
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleBack = () => {
+    if (step > 1) {
+      setStep(step - 1);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onProfileComplete(profile);
+    setLoading(true);
+    setError('');
+
+    try {
+      if (!user) throw new Error('User not authenticated');
+      await saveUserProfile(user.uid, formData);
+      onProfileComplete(formData);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const SelectionBox = ({ 
@@ -121,7 +145,7 @@ export default function ProfileSetup({ onProfileComplete }: ProfileSetupProps) {
                 <input
                   type="text"
                   name="name"
-                  value={profile.name}
+                  value={formData.name}
                   onChange={handleInputChange}
                   required
                   className="w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
@@ -134,7 +158,7 @@ export default function ProfileSetup({ onProfileComplete }: ProfileSetupProps) {
                 <input
                   type="number"
                   name="age"
-                  value={profile.age}
+                  value={formData.age}
                   onChange={handleInputChange}
                   required
                   min="16"
@@ -150,7 +174,7 @@ export default function ProfileSetup({ onProfileComplete }: ProfileSetupProps) {
                   {['male', 'female', 'other'].map((gender) => (
                     <SelectionBox
                       key={gender}
-                      selected={profile.gender === gender}
+                      selected={formData.gender === gender}
                       value={gender}
                       label={gender.charAt(0).toUpperCase() + gender.slice(1)}
                       description=""
@@ -166,43 +190,13 @@ export default function ProfileSetup({ onProfileComplete }: ProfileSetupProps) {
             <div className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Weight (kg)
-                </label>
-                <input
-                  type="number"
-                  name="weight"
-                  value={profile.weight}
-                  onChange={handleInputChange}
-                  required
-                  min="30"
-                  max="300"
-                  className="w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Height (cm)
-                </label>
-                <input
-                  type="number"
-                  name="height"
-                  value={profile.height}
-                  onChange={handleInputChange}
-                  required
-                  min="100"
-                  max="250"
-                  className="w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Activity Level
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {activityLevels.map((level) => (
                     <SelectionBox
                       key={level.value}
-                      selected={profile.activityLevel === level.value}
+                      selected={formData.activityLevel === level.value}
                       value={level.value}
                       label={level.label}
                       description={level.description}
@@ -213,13 +207,13 @@ export default function ProfileSetup({ onProfileComplete }: ProfileSetupProps) {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Preferred Workout Days per Week
+                  Preferred Workout Days
                 </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {workoutDays.map((day) => (
                     <SelectionBox
                       key={day.value}
-                      selected={profile.workoutDaysPerWeek === day.value}
+                      selected={formData.workoutDaysPerWeek === day.value}
                       value={day.value}
                       label={day.label}
                       description={day.description}
@@ -239,9 +233,9 @@ export default function ProfileSetup({ onProfileComplete }: ProfileSetupProps) {
                 </label>
                 <textarea
                   name="healthConditions"
-                  value={profile.healthConditions}
+                  value={formData.healthConditions}
                   onChange={handleInputChange}
-                  placeholder="List any health conditions or injuries..."
+                  placeholder="List any health conditions or injuries that might affect your workout (or type 'None')"
                   rows={3}
                   className="w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
                 />
@@ -252,9 +246,9 @@ export default function ProfileSetup({ onProfileComplete }: ProfileSetupProps) {
                 </label>
                 <textarea
                   name="dietaryRestrictions"
-                  value={profile.dietaryRestrictions}
+                  value={formData.dietaryRestrictions}
                   onChange={handleInputChange}
-                  placeholder="List any dietary restrictions or preferences..."
+                  placeholder="List any dietary restrictions or preferences (or type 'None')"
                   rows={3}
                   className="w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
                 />
@@ -262,12 +256,12 @@ export default function ProfileSetup({ onProfileComplete }: ProfileSetupProps) {
             </div>
           )}
 
-          <div className="flex justify-between pt-6">
+          <div className="flex justify-between mt-8">
             {step > 1 && (
               <button
                 type="button"
-                onClick={() => setStep(step - 1)}
-                className="px-6 py-2 border-2 border-purple-600 text-purple-600 rounded-lg hover:bg-purple-50 transition-colors"
+                onClick={handleBack}
+                className="px-6 py-2 text-purple-600 hover:text-purple-700 transition-colors"
               >
                 Back
               </button>
@@ -283,9 +277,14 @@ export default function ProfileSetup({ onProfileComplete }: ProfileSetupProps) {
             ) : (
               <button
                 type="submit"
-                className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors ml-auto"
+                disabled={loading}
+                className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors ml-auto flex items-center gap-2"
               >
-                Complete Profile
+                {loading ? (
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                ) : (
+                  'Complete Profile'
+                )}
               </button>
             )}
           </div>

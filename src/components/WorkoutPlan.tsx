@@ -26,6 +26,9 @@ export default function WorkoutPlan({ plan, error }: WorkoutPlanProps) {
     return null;
   }
 
+  // Remove any ```markdown or ``` tags from the content
+  const cleanPlan = plan.replace(/```markdown\n|```/g, '');
+
   const getIconForSection = (title: string) => {
     switch (title.toLowerCase()) {
       case 'information summary':
@@ -43,7 +46,7 @@ export default function WorkoutPlan({ plan, error }: WorkoutPlanProps) {
     }
   };
 
-  const sections = plan.split(/(?=# )/).filter(Boolean).map(section => {
+  const sections = cleanPlan.split(/(?=# )/).filter(Boolean).map(section => {
     const [title, ...content] = section.split('\n');
     return {
       title: title.replace('# ', ''),

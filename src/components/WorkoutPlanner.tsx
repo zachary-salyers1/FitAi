@@ -3,6 +3,8 @@ import { Dumbbell } from 'lucide-react';
 import WorkoutForm from './WorkoutForm';
 import WorkoutPlan from './WorkoutPlan';
 import { initializeOpenAI, getOpenAIClient } from '../lib/openai';
+import { useAuth } from '../contexts/AuthContext';
+import { saveWorkoutPlan, getRecentWorkouts, WorkoutPlan as WorkoutPlanType } from '../lib/firestore';
 
 interface WorkoutPlanState {
   plan: string;
@@ -27,6 +29,7 @@ interface WorkoutPlannerProps {
 }
 
 export default function WorkoutPlanner({ userProfile }: WorkoutPlannerProps) {
+  const { user } = useAuth();
   const [apiKeyError, setApiKeyError] = useState<string>('');
   const [formData, setFormData] = useState({
     fitnessLevel: 'beginner',
@@ -39,6 +42,7 @@ export default function WorkoutPlanner({ userProfile }: WorkoutPlannerProps) {
     plan: '',
     loading: false
   });
+  const [recentWorkouts, setRecentWorkouts] = useState<WorkoutPlanType[]>([]);
 
   useEffect(() => {
     const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
@@ -53,6 +57,22 @@ export default function WorkoutPlanner({ userProfile }: WorkoutPlannerProps) {
       setApiKeyError('Failed to initialize OpenAI client. Please check your API key.');
     }
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      loadRecentWorkouts();
+    }
+  }, [user]);
+
+  const loadRecentWorkouts = async () => {
+    if (!user) return;
+    try {
+      const workouts = await getRecentWorkouts(user.uid);
+      setRecentWorkouts(workouts);
+    } catch (error) {
+      console.error('Failed to load recent workouts:', error);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLTextAreaElement>) => {
     const value = e.target.name === 'customEquipment' ? e.target.value : e.target.value;
@@ -126,8 +146,18 @@ export default function WorkoutPlanner({ userProfile }: WorkoutPlannerProps) {
         if (runStatus.status === 'completed') {
           const messages = await openai.beta.threads.messages.list(thread.id);
           const latestMessage = messages.data[0];
+          const plan = latestMessage.content[0].text.value;
+          
+          if (user) {
+            await saveWorkoutPlan(user.uid, {
+              plan,
+              preferences: formData
+            });
+            await loadRecentWorkouts();
+          }
+
           setWorkoutPlan({
-            plan: latestMessage.content[0].text.value,
+            plan,
             loading: false
           });
         } else if (runStatus.status === 'failed') {
@@ -173,6 +203,30 @@ export default function WorkoutPlanner({ userProfile }: WorkoutPlannerProps) {
           onChange={handleInputChange}
           isLoading={workoutPlan.loading}
         />
+
+        {recentWorkouts.length > 0 && (
+          <div className="mb-8">
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">Recent Workouts</h3>
+            <div className="space-y-4">
+              {recentWorkouts.map((workout) => (
+                <div
+                  key={workout.id}
+                  className="p-4 border border-purple-100 rounded-lg hover:bg-purple-50 cursor-pointer"
+                  onClick={() => setWorkoutPlan({ plan: workout.plan, loading: false })}
+                >
+                  <div className="flex justify-between items-center">
+                    <div className="text-sm text-gray-600">
+                      {new Date(workout.createdAt?.toDate()).toLocaleDateString()}
+                    </div>
+                    <div className="text-sm text-purple-600">
+                      {workout.preferences.goals}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <WorkoutPlan
           plan={workoutPlan.plan}
