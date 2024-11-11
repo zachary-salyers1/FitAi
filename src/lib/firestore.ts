@@ -9,7 +9,9 @@ import {
   getDocs,
   orderBy,
   limit,
-  serverTimestamp
+  serverTimestamp,
+  updateDoc,
+  deleteDoc
 } from 'firebase/firestore';
 
 export interface UserProfile {
@@ -35,6 +37,35 @@ export interface WorkoutPlan {
     equipment: string;
     customEquipment: string[];
   };
+  createdAt: any;
+}
+
+export interface TrackedWorkout {
+  id: string;
+  name: string;
+  description: string;
+  schedule: string[];
+  workoutsByDay: Record<string, {
+    name: string;
+    exercises: {
+      name: string;
+      sets: number;
+      reps: number;
+      weight?: number;
+      notes?: string;
+    }[];
+  }>;
+  progress: {
+    date: string;
+    completed: boolean;
+    exercises: {
+      name: string;
+      sets: {
+        reps: number;
+        weight: number;
+      }[];
+    }[];
+  }[];
   createdAt: any;
 }
 
@@ -74,4 +105,49 @@ export const getRecentWorkouts = async (userId: string, limitCount: number = 5):
     id: doc.id,
     ...doc.data()
   })) as WorkoutPlan[];
+};
+
+export const addWorkoutToTracker = async (userId: string, workout: Omit<TrackedWorkout, 'id' | 'createdAt'>) => {
+  const workoutRef = doc(collection(db, 'users', userId, 'trackedWorkouts'));
+  await setDoc(workoutRef, {
+    ...workout,
+    createdAt: serverTimestamp()
+  });
+  return workoutRef.id;
+};
+
+export const getActiveWorkouts = async (userId: string): Promise<TrackedWorkout[]> => {
+  const workoutsRef = collection(db, 'users', userId, 'trackedWorkouts');
+  const q = query(workoutsRef, orderBy('createdAt', 'desc'));
+  const querySnapshot = await getDocs(q);
+  
+  return querySnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  })) as TrackedWorkout[];
+};
+
+export const updateWorkoutProgress = async (
+  userId: string,
+  workoutId: string,
+  progress: TrackedWorkout['progress'][0]
+) => {
+  const workoutRef = doc(db, 'users', userId, 'trackedWorkouts', workoutId);
+  const workoutDoc = await getDoc(workoutRef);
+  
+  if (!workoutDoc.exists()) {
+    throw new Error('Workout not found');
+  }
+
+  const workout = workoutDoc.data() as TrackedWorkout;
+  const updatedProgress = [...workout.progress, progress];
+
+  await updateDoc(workoutRef, {
+    progress: updatedProgress
+  });
+};
+
+export const deleteTrackedWorkout = async (userId: string, workoutId: string) => {
+  const workoutRef = doc(db, 'users', userId, 'trackedWorkouts', workoutId);
+  await deleteDoc(workoutRef);
 }; 

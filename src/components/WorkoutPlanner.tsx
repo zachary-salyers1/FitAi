@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Dumbbell, User } from 'lucide-react';
+import { Dumbbell, User, Plus, History } from 'lucide-react';
 import WorkoutForm from './WorkoutForm';
 import WorkoutPlan from './WorkoutPlan';
 import Profile from './Profile';
 import { initializeOpenAI } from '../lib/openai';
 import { useAuth } from '../contexts/AuthContext';
 import { saveWorkoutPlan, getRecentWorkouts } from '../lib/firestore';
+import PlanTracker from './PlanTracker';
 
 interface WorkoutPlannerProps {
   userProfile: any;
@@ -28,6 +29,7 @@ export default function WorkoutPlanner({ userProfile, onProfileUpdate }: Workout
     loading: false
   });
   const [recentWorkouts, setRecentWorkouts] = useState([]);
+  const [activeTab, setActiveTab] = useState('generate');
 
   useEffect(() => {
     const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
@@ -185,47 +187,76 @@ export default function WorkoutPlanner({ userProfile, onProfileUpdate }: Workout
           </button>
         </div>
 
-        {apiKeyError && (
-          <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg">
-            {apiKeyError}
-          </div>
-        )}
+        <div className="flex space-x-1 border-b border-gray-200 mb-8">
+          <button
+            onClick={() => setActiveTab('generate')}
+            className={`px-4 py-2 border-b-2 font-medium text-sm ${
+              activeTab === 'generate'
+                ? 'border-purple-600 text-purple-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Generate Plan
+          </button>
+          <button
+            onClick={() => setActiveTab('track')}
+            className={`px-4 py-2 border-b-2 font-medium text-sm ${
+              activeTab === 'track'
+                ? 'border-purple-600 text-purple-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Track Workouts
+          </button>
+        </div>
 
-        <WorkoutForm
-          formData={formData}
-          onSubmit={generateWorkoutPlan}
-          onChange={handleInputChange}
-          isLoading={workoutPlan.loading}
-        />
+        {activeTab === 'generate' ? (
+          <>
+            {apiKeyError && (
+              <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg">
+                {apiKeyError}
+              </div>
+            )}
 
-        {recentWorkouts.length > 0 && (
-          <div className="mb-8">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">Recent Workouts</h3>
-            <div className="space-y-4">
-              {recentWorkouts.map((workout) => (
-                <div
-                  key={workout.id}
-                  className="p-4 border border-purple-100 rounded-lg hover:bg-purple-50 cursor-pointer"
-                  onClick={() => setWorkoutPlan({ plan: workout.plan, loading: false })}
-                >
-                  <div className="flex justify-between items-center">
-                    <div className="text-sm text-gray-600">
-                      {new Date(workout.createdAt?.toDate()).toLocaleDateString()}
+            <WorkoutForm
+              formData={formData}
+              onSubmit={generateWorkoutPlan}
+              onChange={handleInputChange}
+              isLoading={workoutPlan.loading}
+            />
+
+            {recentWorkouts.length > 0 && (
+              <div className="mb-8">
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">Recent Workouts</h3>
+                <div className="space-y-4">
+                  {recentWorkouts.map((workout) => (
+                    <div
+                      key={workout.id}
+                      className="p-4 border border-purple-100 rounded-lg hover:bg-purple-50 cursor-pointer"
+                      onClick={() => setWorkoutPlan({ plan: workout.plan, loading: false })}
+                    >
+                      <div className="flex justify-between items-center">
+                        <div className="text-sm text-gray-600">
+                          {new Date(workout.createdAt?.toDate()).toLocaleDateString()}
+                        </div>
+                        <div className="text-sm text-purple-600">
+                          {workout.preferences.goals}
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-sm text-purple-600">
-                      {workout.preferences.goals}
-                    </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
+              </div>
+            )}
 
-        <WorkoutPlan
-          plan={workoutPlan.plan}
-          error={workoutPlan.error}
-        />
+            <WorkoutPlan
+              plan={workoutPlan.plan}
+              error={workoutPlan.error}
+            />
+          </>
+        ) : (
+          <PlanTracker userId={user?.uid} />
+        )}
       </div>
 
       {showProfile && (
